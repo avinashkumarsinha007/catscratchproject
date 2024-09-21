@@ -1,23 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import Sprite from "./Sprite";
 import AddSprite from "./AddSprite";
 import ViewPanel from "./ViewPanel";
 import RenderSprite from "./RenderSprite";
+import { Context } from "./Context";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const PreviewArea = ({ actions }) => {
-  const [sprites, setSprites] = useState([
-    { id: 1, xPos: 10, yPos: 50, rotation: 0, spriteName: "cat" },
-  ]);
+const PreviewArea = ({ actions, setActions }) => {
+  const { sprites, setSprites, selectedSpriteId, setSelectedSpriteId } =
+    useContext(Context);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [lastSubAction, setLastSubAction] = useState([]);
-  const [filteredSprite, setFilteredSprite] = useState(sprites[0]);
-  const [selectedSpriteId, setSelectedSpriteId] = useState(1);
 
-  const executeAction = (action) => {
+  const executeAction = (spriteId, action) => {
     setSprites((prevSprites) =>
       prevSprites.map((sprite) => {
+        if (sprite.id !== spriteId) return sprite;
         let x = sprite.xPos;
         let y = sprite.yPos;
         let rotation = sprite.rotation;
@@ -36,51 +34,65 @@ const PreviewArea = ({ actions }) => {
     );
   };
 
+  useEffect(() => {
+    if (sprites?.length === 0) {
+      setActions({});
+    }
+  }, [sprites, setActions]);
+
   const playAnimations = async () => {
     setIsPlaying(true);
-    let currentActions = [...lastSubAction];
-    for (let action of actions) {
-      if (action.motionType === "REPEAT") {
-        for (let i = 0; i < action.value; i++) {
-          for (let subAction of currentActions) {
-            executeAction(subAction);
+    const spritePromises = Object.entries(actions).map(
+      async ([spriteId, spriteActions]) => {
+        let currentActions = [];
+        for (let action of spriteActions) {
+          if (action.motionType === "REPEAT") {
+            for (let i = 0; i < action.value; i++) {
+              for (let subAction of currentActions) {
+                executeAction(spriteId, subAction);
+                await delay(100);
+              }
+            }
+          } else {
+            executeAction(spriteId, action);
+            currentActions.push(action);
             await delay(100);
           }
         }
-      } else {
-        executeAction(action);
-        currentActions.push(action);
-        setLastSubAction([...currentActions]);
-        await delay(100);
       }
-    }
+    );
+    await Promise.all(spritePromises);
     setIsPlaying(false);
   };
 
   const addSprite = (newSprite) => {
     setSprites((prevSprites) => [...prevSprites, newSprite]);
+    if (newSprite !== undefined) {
+      setSelectedSpriteId(newSprite.id);
+    }
   };
 
   const updateSprite = (spriteId, field, value) => {
-    setSprites((prevSprites) =>
-      prevSprites.map((sprite) =>
+    setSprites((prevSprites) => {
+      const updatedSprites = prevSprites.map((sprite) =>
         sprite.id === spriteId
           ? {
               ...sprite,
               [field]:
                 field === "xPos" || field === "yPos" || field === "rotation"
-                  ? parseFloat(value)
+                  ? value === ""
+                    ? value
+                    : parseFloat(value)
                   : value,
             }
           : sprite
-      )
-    );
-    selectSprite(spriteId);
+      );
+      setSelectedSpriteId(spriteId);
+      return updatedSprites;
+    });
   };
 
   const selectSprite = (spriteId) => {
-    let selectedSprite = sprites.filter((sprite) => sprite.id === spriteId);
-    setFilteredSprite(selectedSprite[0]);
     setSelectedSpriteId(spriteId);
   };
 
@@ -105,7 +117,10 @@ const PreviewArea = ({ actions }) => {
         ))}
       </div>
       <div className="h-2/4">
-        <ViewPanel sprite={filteredSprite} onUpdateSprite={updateSprite} />
+        <ViewPanel
+          sprite={sprites.find((sprite) => sprite.id === selectedSpriteId)}
+          onUpdateSprite={updateSprite}
+        />
         <div className="flex justify-around pt-2">
           <AddSprite onAddSprite={addSprite} />
           <button
@@ -122,7 +137,7 @@ const PreviewArea = ({ actions }) => {
           sprites={sprites}
           onDeleteSprite={deleteSprite}
           onSelectSprite={selectSprite}
-          selectedSpriteId= {selectedSpriteId}
+          selectedSpriteId={selectedSpriteId}
         />
       </div>
     </div>
