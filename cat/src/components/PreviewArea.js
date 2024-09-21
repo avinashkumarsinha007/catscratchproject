@@ -51,12 +51,14 @@ const PreviewArea = ({ actions, setActions }) => {
               for (let subAction of currentActions) {
                 executeAction(spriteId, subAction);
                 await delay(100);
+                checkCollision();
               }
             }
           } else {
             executeAction(spriteId, action);
             currentActions.push(action);
             await delay(100);
+            checkCollision();
           }
         }
       }
@@ -100,6 +102,31 @@ const PreviewArea = ({ actions, setActions }) => {
     setSprites((prevSprites) =>
       prevSprites.filter((sprite) => sprite.id !== spriteId)
     );
+  };
+
+  const isCollision = (sprite1, sprite2) => {
+    const sizeOfSprite = 50;
+    const xOverlap = Math.abs(sprite1.xPos - sprite2.xPos) < sizeOfSprite;
+    const yOverlap = Math.abs(sprite1.yPos - sprite2.yPos) < sizeOfSprite;
+    return xOverlap && yOverlap;
+  };
+
+  const checkCollision = () => {
+    const spriteKeys = Object.keys(sprites);
+    for (let i = 0; i < spriteKeys.length; i++) {
+      for (let j = i + 1; j < spriteKeys.length; j++) {
+        const sprite1 = sprites[i];
+        const sprite2 = sprites[j];
+        if (isCollision(sprite1, sprite2)) {
+          const tempActions = actions[sprite1.id];
+          setActions((prevActions) => ({
+            ...prevActions,
+            [sprite1.id]: actions[sprite2.id],
+            [sprite2.id]: tempActions,
+          }));
+        }
+      }
+    }
   };
 
   return (

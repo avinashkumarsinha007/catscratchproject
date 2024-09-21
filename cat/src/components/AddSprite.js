@@ -8,7 +8,7 @@ const AddSprite = ({ onAddSprite }) => {
   const handleAddSprite = () => {
     const newSprite = {
       id: Math.random() + "sprite",
-      xPos: parseInt(10 + 10 * Math.random()),
+      xPos: parseInt(40 + 10 * Math.random()),
       yPos: parseInt(50 + 50 * Math.random()),
       rotation: 0,
       spriteName: selectedSprite,
